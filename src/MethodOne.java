@@ -1,13 +1,15 @@
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.LinkedList;
-import java.util.Queue;
 import java.util.Scanner;
+import java.util.Stack;
 
 public class MethodOne {
 
 	private static final String PROBLEM = "grid";
 	private static final String EXT = ".dat";
+
+	private static int R = 0;
+	private static int C = 0;
 
 	public static void main(String[] args) {
 		Scanner scan;
@@ -18,107 +20,91 @@ public class MethodOne {
 			return;
 		}
 		int times = Integer.parseInt(scan.nextLine());
+		int set = 1;
 		while (times-- > 0) {
 			String[] split = scan.nextLine().split(" ");
-			int rsiz = Integer.parseInt(split[0]);
-			int csiz = Integer.parseInt(split[1]);
-			char[][] grid = new char[rsiz][csiz];
-			for (int i = 0; i < rsiz; i++)
+			R = Integer.parseInt(split[0]);
+			C = Integer.parseInt(split[1]);
+			char[][] grid = new char[R][C];
+			for (int i = 0; i < R; i++)
 				grid[i] = scan.nextLine().toCharArray();
-			int[] start = getUpmostPosition(grid, '.');
-			int width = (start[0] != -1 || start[1] != -1) ? 1 : 0;
-			int length = (start[0] != -1 || start[1] != -1) ? 1 : 0;
-			int largest = 0;
-			Queue<Integer> q = new LinkedList<>();
-			q.add(start[0]);
-			q.add(start[1]);
-			boolean down = false;
-			boolean right = false;
-			while (!q.isEmpty()) {
-				int r = q.poll();
-				int c = q.poll();
-				int rr = r + 1;
-				int cc = c + 1;
-				if (!inBounds(grid, r, cc))
-					continue;
-				if (grid[r][cc] == '.' && !down) {
-					width++;
-					q.add(r);
-					q.add(cc);
-				} else if (inBounds(grid, rr, c)) {
-					down = true;
-					if (grid[rr][c] == '.' && grid[rr][start[1] + width - 1] == '.') {
-						length++;
-						q.add(rr);
-						q.add(c);
-					} else {
-						if (width * length > largest) {
-							largest = width * length;
-						}
-					}
-				}
-			}
-			start = getLeftmostPosition(grid, '.');
-			q.add(start[0]);
-			q.add(start[1]);
-			width = length = 0;
-			while (!q.isEmpty()) {
-				int r = q.poll();
-				int c = q.poll();
-				int rr = r + 1;
-				int cc = c + 1;
-				if (!inBounds(grid, rr, c))
-					continue;
-				if (grid[rr][c] == '.' && !right) {
-					length++;
-					q.add(rr);
-					q.add(c);
-				} else if (inBounds(grid, r, cc)) {
-					right = true;
-					if (grid[r][cc] == '.' && grid[start[0] + length - 1][cc] == '.') {
-						width++;
-						q.add(r);
-						q.add(cc);
-					} else {
-						if (width * length > largest) {
-							largest = width * length;
-						}
-					}
-				}
-			}
-			printLine(width + " " + length);
-			if (largest == 0) {
-				printLine("No rectangle.");
-			} else {
-				printLine("Largest rectangle: " + largest);
-			}
+			int[][] x = new int[R][C];
+			int[][] o = new int[R][C];
+			messAround(grid, x, 'x');
+			messAround(grid, o, 'o');
+			printLine("Grid " + set++ + ": " + maxRectangle(x) + " " + maxRectangle(o));
+			printArray(x);
 		}
 		scan.close();
 	}
 	
-	public static int[] getUpmostPosition(char[][] array, char ch) {
-		for (int r = 0; r < array.length; r++)
-			for (int c = 0; c < array[r].length; c++)
-				if (array[r][c] == ch)
-					return new int[] {r, c};
-		return new int[] {-1, -1};
+	public static void messAround(char[][] cha, int[][] array, char ch) {
+		for (int r = 0; r < array.length; r++) {
+			for (int c = 0; c < array[r].length; c++) {
+				if (cha[r][c] == ch)
+					array[r][c] = 1;
+				else
+					array[r][c] = 0;
+			}
+		}
 	}
-	
-	public static int[] getLeftmostPosition(char[][] array, char ch) {
-		for (int c = 0; c < array[0].length; c++)
-			for (int r = 0; r < array.length; r++)
-				if (array[r][c] == ch)
-					return new int[] {r, c};
-		return new int[] {-1, -1};
+
+	public static int maxHist(int[] row) {
+		Stack<Integer> result = new Stack<>();
+		int top = 0;
+		int max = 0;
+		int area = 0;
+		int i = 0;
+		while (i < C) {
+			if (result.empty() || row[result.peek()] <= row[i]) {
+				result.push(i++);
+			} else {
+				top = row[result.pop()];
+				area = top * i;
+
+				if (!result.empty())
+					area = top * (i - result.peek() - 1);
+				max = Math.max(area, max);
+			}
+		}
+		while (!result.empty()) {
+			top = row[result.pop()];
+			area = top * i;
+			if (!result.empty())
+				area = top * (i - result.peek() - 1);
+			max = Math.max(area, max);
+		}
+		return max;
 	}
-	
-	public static boolean inBounds(char[][] array, int r, int c) {
-		return (r >= 0 && r < array.length) && (c >= 0 && c < array[r].length);
+
+	public static int maxRectangle(int[][] grid) {
+		int result = maxHist(grid[0]);
+		for (int i = 1; i < R; i++) {
+
+			for (int j = 0; j < C; j++)
+
+				// if A[i][j] is 1 then add A[i -1][j]
+				if (grid[i][j] == 1)
+					grid[i][j] += grid[i - 1][j];
+
+			// Update result if area with current row (as last row)
+			// of rectangle) is more
+			result = Math.max(result, maxHist(grid[i]));
+		}
+		return result;
 	}
-	
+
 	public static void printArray(char[][] obj) {
 		for (char[] ob : obj) {
 			for (char o : ob)
+				print(o);
+			printLine();
+		}
+	}
+	
+	public static void printArray(int[][] obj) {
+		for (int[] ob : obj) {
+			for (int o : ob)
 				print(o);
 			printLine();
 		}
